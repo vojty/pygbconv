@@ -108,7 +108,7 @@ def convimg(name):
     # Iterate through each row of 8 pixel height
     for row in pixels_g:
         # Iterate through the number of tiles defined by the width
-        for j in range(w / 8):
+        for j in range(w // 8):
             temp = []
             # Iterate through 8 pieces of 8*1 pixel segments which together form a tile
             for k in range(8):
