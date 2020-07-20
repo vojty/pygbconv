@@ -21,8 +21,7 @@ def chunks(l, n):
 # Takes a size 64 tuple and returns 16 bytes in GB tile format
 def convtile(tile_in):
     lines = chunks(tile_in, 8)
-    tempstring = ""
-
+    tileBytes = bytearray()
     for l in lines:
         lowerbyte = ""
         upperbyte = ""
@@ -31,9 +30,10 @@ def convtile(tile_in):
             lowerbyte += "1" if (b & 1) else "0"
             upperbyte += "1" if (b & 2) else "0"
 
-        tempstring += chr(int(lowerbyte, 2)) + chr(int(upperbyte, 2))
+        tileBytes.append(int(upperbyte, 2))
+        tileBytes.append(int(lowerbyte, 2))
 
-    return tempstring
+    return tileBytes
 
 
 def convimg(name):
@@ -135,17 +135,17 @@ def convimg(name):
         tilemap.append(tiles_o.index(t))
 
     # Convert to binary
-    tilemap = "".join(chr(x & 0xFF) for x in tilemap)
+    tilemap = bytearray(x & 0xFF for x in tilemap)
 
     if len(tiles_o) > 256:
         print(
             "Could not optimize image to below 256 tiles. Image stored as 360 tile image."
         )
-        tiles = "".join(x for x in tiles)
+        tiles = bytearray().join(x for x in tiles)
         return tiles, None
     else:
         print("Optimized image to", len(tiles_o), "tiles.")
-        tiles_o = "".join(x for x in tiles_o)
+        tiles_o = bytearray().join(x for x in tiles_o)
         return tiles_o, tilemap
 
 
@@ -164,16 +164,16 @@ def dw_flip(val):
 def gbheaderchecksum(r):
     acc = 0
     for i in r[0x134:0x14D]:
-        acc += ~ord(i)
+        acc += ~i
         acc &= 0xFF
 
-    return db(acc)
+    return acc
 
 
 def gbglobalchecksum(r):
     acc = 0
     for i in r:
-        acc += ord(i)
+        acc += i
         acc &= 0xFFFF
 
     return dw_flip(acc)  # Global checksum has MSByte first!
@@ -190,20 +190,13 @@ def gbromfix(romdata):
     missingbytes = targetsize - len(romdata)
 
     # Append that many bytes
-    romdata += chr(0xFF) * missingbytes
+    romdata += bytes([0xFF] * missingbytes)
 
-    # Convert string to list in order to allow operations
-    romdata = list(romdata)
-    print(len(romdata[0]))
-    #
-    romdata[0x148] = chr(romsize)  # ROM size header value
-
+    romdata[0x148] = romsize  # ROM size header value
     romdata[0x14D] = gbheaderchecksum(romdata)  # Header checksum
 
-    romdata[0x14E:0x150] = dw(0)  # Zero out global checksum
-    romdata[0x14E:0x150] = gbglobalchecksum(romdata)
-
-    romdata = "".join(romdata)
+    romdata[0x14E:0x150] = bytes(0x150 - 0x14E)  # Zero out global checksum
+    romdata[0x14E:0x150] = gbglobalchecksum(romdata).encode("utf-8")
 
     return romdata
 
@@ -218,7 +211,7 @@ def compilerom(gbin, gbout, images):
     f = open(gbin, "rb")
     baserom = f.read(16384)
     headerpart = "IMG"
-    gfxpart = ""
+    gfxpart = bytes()
 
     headersize = 4 * len(images) + 3 + 1
 
@@ -239,7 +232,8 @@ def compilerom(gbin, gbout, images):
     headerpart += chr(0)
 
     fout = open(gbout, "wb")
-    fout.write(gbromfix(baserom + headerpart + gfxpart))
+    content = bytearray(baserom) + bytearray(headerpart, encoding="ascii") + gfxpart
+    fout.write(gbromfix(content))
     fout.close()
 
 
