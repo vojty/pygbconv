@@ -5,6 +5,13 @@ I'm not a python guy... :)
 import sys
 
 from PIL import Image
+import os
+
+
+def ensure_dir(file_path):
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 
 def main():
@@ -37,7 +44,9 @@ def main():
     if argsCount == 2:
         outputFile = sys.argv[2]
     else:
-        outputFile = "output.png"
+        outputFile = "output/output.png"
+
+    ensure_dir(outputFile)
     imagep.save(outputFile)
 
 
